@@ -9,6 +9,8 @@ import javafx.collections.*;
 import java.io.*;
 import java.util.*;
 import javafx.beans.property.*;
+import javafx.beans.value.ObservableValue;
+import javafx.scene.control.cell.PropertyValueFactory;
 
 public class UTS extends Application {
 
@@ -21,7 +23,7 @@ public class UTS extends Application {
     private final TextField nilai3Field = new TextField();
     private final TextField cariField = new TextField();
     private final Label rataRataLabel = new Label("Rata-rata: ");
-    private final Label totalLabel = new Label("Total siswa: ");
+    private final Label totalLabel = new Label("Total Mahasiswa: ");
 
     public static void main(String[] args) {
         launch(args);
@@ -37,7 +39,8 @@ public class UTS extends Application {
                 kolom("NIM", "nim"),
                 kolomDouble("Matematika", "nilai1"),
                 kolomDouble("Fisika", "nilai2"),
-                kolomDouble("Bahasa", "nilai3")
+                kolomDouble("Bahasa", "nilai3"),
+                kolomRataRata()
         );
 
         namaField.setPromptText("Nama");
@@ -45,14 +48,18 @@ public class UTS extends Application {
         nilai1Field.setPromptText("Nilai Matematika");
         nilai2Field.setPromptText("Nilai Fisika");
         nilai3Field.setPromptText("Nilai Bahasa");
-        cariField.setPromptText("Cari Nama");
+        cariField.setPromptText("Cari Nama atau NIM");
 
         VBox layout = new VBox(10,
                 table,
                 new HBox(5, namaField, nimField, nilai1Field, nilai2Field, nilai3Field, btn("Tambah", e -> tambah())),
-                new HBox(5, cariField, btn("Cari (Binary)", e -> cari())),
+                new HBox(5, cariField,
+                        btn("Cari Nama (Binary)", e -> cariNama()),
+                        btn("Cari NIM (Binary)", e -> cariNIM())
+                ),
                 new HBox(5,
-                        btn("Urut Nilai Desc", e -> urut()),
+                        btn("Urut Nilai Desc", e -> urutDesc()),
+                        btn("Urut Nilai Asc", e -> urutAsc()),
                         btn("Hitung Rata2 & Total", e -> hitung()),
                         btn("Baca dari File", e -> muatUlangDariFile()),
                         btn("Lihat Isi File", e -> tampilkanIsiFile())
@@ -61,7 +68,7 @@ public class UTS extends Application {
         );
         layout.setPadding(new javafx.geometry.Insets(10));
 
-        stage.setScene(new Scene(layout, 900, 520));
+        stage.setScene(new Scene(layout, 1000, 550));
         stage.setTitle("Aplikasi Nilai Siswa");
         stage.show();
     }
@@ -88,6 +95,12 @@ public class UTS extends Application {
                 default: return null;
             }
         });
+        return col;
+    }
+
+    private TableColumn<Siswa, Double> kolomRataRata() {
+        TableColumn<Siswa, Double> col = new TableColumn<>("Rata-rata");
+        col.setCellValueFactory(data -> new ReadOnlyObjectWrapper<>(data.getValue().getRataRata()));
         return col;
     }
 
@@ -136,7 +149,7 @@ public class UTS extends Application {
         try (BufferedReader br = new BufferedReader(new FileReader(FILE_PATH))) {
             String line;
             while ((line = br.readLine()) != null) {
-                isi.append(line).append("\n");
+                isi.append(line).append ("\n");
             }
         } catch (IOException e) {
             alert("Gagal membaca isi file.");
@@ -175,22 +188,46 @@ public class UTS extends Application {
         }
     }
 
-    private void urut() {
+    // Tambahan pengurutan ascending dan descending
+    private void urutDesc() {
         siswaList.sort((a, b) -> Double.compare(b.getRataRata(), a.getRataRata()));
     }
 
-    private void cari() {
-        List<Siswa> sorted = new ArrayList<>(siswaList);
-        sorted.sort(Comparator.comparing(Siswa::getNama));
-        int i = binarySearch(sorted, cariField.getText());
-        alert(i >= 0 ? "Ditemukan: " + sorted.get(i).getNama() : "Tidak ditemukan!");
+    private void urutAsc() {
+        siswaList.sort((a, b) -> Double.compare(a.getRataRata(), b.getRataRata()));
     }
 
-    private int binarySearch(List<Siswa> list, String target) {
+    private void cariNama() {
+        List<Siswa> sorted = new ArrayList<>(siswaList);
+        sorted.sort(Comparator.comparing(Siswa::getNama));
+        int i = binarySearchNama(sorted, cariField.getText());
+        alert(i >= 0 ? "Ditemukan: " + sorted.get(i).getNama() : "Nama tidak ditemukan!");
+    }
+
+    private void cariNIM() {
+        List<Siswa> sorted = new ArrayList<>(siswaList);
+        sorted.sort(Comparator.comparing(Siswa::getNim));
+        int i = binarySearchNIM(sorted, cariField.getText());
+        alert(i >= 0 ? "Ditemukan: " + sorted.get(i).getNama() + " (NIM: " + sorted.get(i).getNim() + ")" : "NIM tidak ditemukan!");
+    }
+
+    private int binarySearchNama(List<Siswa> list, String target) {
         int low = 0, high = list.size() - 1;
         while (low <= high) {
             int mid = (low + high) / 2;
             int cmp = list.get(mid).getNama().compareToIgnoreCase(target);
+            if (cmp == 0) return mid;
+            if (cmp < 0) low = mid + 1;
+            else high = mid - 1;
+        }
+        return -1;
+    }
+
+    private int binarySearchNIM(List<Siswa> list, String target) {
+        int low = 0, high = list.size() - 1;
+        while (low <= high) {
+            int mid = (low + high) / 2;
+            int cmp = list.get(mid).getNim().compareToIgnoreCase(target);
             if (cmp == 0) return mid;
             if (cmp < 0) low = mid + 1;
             else high = mid - 1;
